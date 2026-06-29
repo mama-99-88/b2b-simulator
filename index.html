@@ -66,11 +66,7 @@
         <label><input type="radio" name="vat" value="excluded" onchange="calc()"> VAT 미포함</label>
       </div>
     </div>
-    <div class="row">
-      <label class="lbl">VAT율(%)</label>
-      <input type="number" id="vatRate" value="10" oninput="calc()" style="width:120px;text-align:right;">
-    </div>
-    <div class="note">VAT 미포함 선택 시 입력한 예산은 공급가액(부가세 제외)으로 간주됩니다.</div>
+    <div class="note">VAT는 10% 고정입니다. "VAT 포함" 선택 시 예산에서 부가세 10%를 제외한 사업예산이 3번에 표기됩니다. "VAT 미포함" 선택 시 입력한 예산은 공급가액(부가세 제외)으로 간주됩니다.</div>
   </div>
 
   <div class="card">
@@ -122,7 +118,7 @@
     <h2>4. 예산 / 수익 분석</h2>
     <div class="result-grid">
       <div class="result-box"><div class="k">사업예산 (공급가액, VAT 제외)</div><div class="v" id="rNet">0 원</div></div>
-      <div class="result-box"><div class="k">부가세(VAT)</div><div class="v" id="rVat">0 원</div></div>
+      <div class="result-box"><div class="k">부가세(VAT 10%)</div><div class="v" id="rVat">0 원</div></div>
       <div class="result-box"><div class="k">고정지출 합계</div><div class="v" id="rFixed">0 원</div></div>
       <div class="result-box"><div class="k">변동비 합계</div><div class="v" id="rVar">0 원</div></div>
       <div class="result-box"><div class="k">지출비용 총합 (고정+변동)</div><div class="v" id="rExp">0 원</div></div>
@@ -152,6 +148,8 @@
 </div>
 
 <script>
+  const VAT_RATE = 0.10; // VAT 10% 고정
+
   function num(v){ return parseFloat(String(v).replace(/,/g,''))||0; }
   function comma(n){ if(isNaN(n)||!isFinite(n)) n=0; return Math.round(n).toLocaleString('ko-KR'); }
   function won(n){ return comma(n)+' 원'; }
@@ -159,19 +157,10 @@
 
   let CTX = { bidNet:0, bidTotal:0, netBudget:0 };
 
-  const FIXED = [
-    {name:'주강사', unit:120000, qty:24, note:''},
-    {name:'보조강사', unit:30000, qty:24, note:''},
-    {name:'주강사(오프)', unit:300000, qty:40, note:''},
-    {name:'보조강사(오프)', unit:250000, qty:40, note:''},
-    {name:'인프라', unit:30000, qty:50, note:'현 신청인원 42명, 50명 정원 기준 계산'},
-    {name:'출장비', unit:500000, qty:5, note:'1회 출장비 50만원으로 산정'},
-    {name:'예비비', unit:5000000, qty:1, note:''}
-  ];
-
-  const VARS = [
-    {name:'커미션', base:'bidNet', pct:5, note:'투찰가의 5%'}
-  ];
+  // 고정 지출 기본 5행 (공란)
+  const FIXED_EMPTY_ROWS = 5;
+  // 변동비 기본 행 (공란 1개)
+  const VAR_EMPTY_ROWS = 5;
 
   function addRow(d){
     d = d || {name:'',unit:'',qty:'',note:''};
@@ -220,15 +209,14 @@
   function calc(){
     applyComma(document.getElementById('budget'));
     const budget=num(document.getElementById('budget').value);
-    const vatRate=(parseFloat(document.getElementById('vatRate').value)||0)/100;
     const vatType=document.querySelector('input[name="vat"]:checked').value;
     let netBudget, vatAmount;
-    if(vatType==='included'){ netBudget=budget/(1+vatRate); vatAmount=budget-netBudget; }
-    else { netBudget=budget; vatAmount=budget*vatRate; }
+    if(vatType==='included'){ netBudget=budget/(1+VAT_RATE); vatAmount=budget-netBudget; }
+    else { netBudget=budget; vatAmount=budget*VAT_RATE; }
 
     const bidRate=parseFloat(document.getElementById('bidRate').value)||0;
     const bidNet=netBudget*(bidRate/100);
-    const bidTotal=bidNet*(1+vatRate);
+    const bidTotal=bidNet*(1+VAT_RATE);
     CTX={bidNet:bidNet, bidTotal:bidTotal, netBudget:netBudget};
 
     let fixedTotal=0;
@@ -283,8 +271,8 @@
   }
 
   document.getElementById('budget').addEventListener('input', calc);
-  FIXED.forEach(d=>addRow(d));
-  VARS.forEach(d=>addVar(d));
+  for(let i=0;i<FIXED_EMPTY_ROWS;i++) addRow();
+  for(let i=0;i<VAR_EMPTY_ROWS;i++) addVar();
   calc();
 </script>
 </body>
