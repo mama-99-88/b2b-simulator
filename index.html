@@ -35,6 +35,9 @@
   .btn-add-var { background:#e6a700; color:#fff; }
   .btn-del { background:#ffe2e2; color:#d33; padding:3px 0; width:28px; font-size:14px; font-weight:700; line-height:1; }
   .btn-add:hover { background:#245bc0; }
+  .btn-pdf { background:#16a34a; color:#fff; font-size:15px; padding:11px 22px; }
+  .btn-pdf:hover { background:#138a3e; }
+  .topbar { display:flex; justify-content:flex-end; margin-bottom:14px; }
   .result-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .result-box { background:#f8f9fb; border-radius:9px; padding:14px 16px; }
   .result-box .k { font-size:13px; color:#777; }
@@ -46,12 +49,27 @@
   .rate-display { font-size:24px; font-weight:800; color:#2d6cff; width:80px; text-align:right; }
   .note { font-size:12px; color:#999; margin-top:6px; }
   @media (max-width:680px){ .result-grid{grid-template-columns:1fr;} }
+
+  /* === 인쇄(PDF) 전용 스타일 === */
+  @media print {
+    body { background:#fff; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .card { box-shadow:none; border:1px solid #ddd; page-break-inside:avoid; }
+    .no-print { display:none !important; }            /* 버튼/슬라이더 등 숨김 */
+    input, select { border:none !important; background:transparent !important; padding:2px 0 !important; }
+    input { color:#222 !important; }
+    .slider-row .rate-display { width:auto; }
+    @page { margin:14mm; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>입찰 투찰율 시뮬레이션</h1>
   <div class="sub">예산 · 고정지출 · 변동비 · 수익분석율을 기반으로 투찰가를 결정합니다.</div>
+
+  <div class="topbar no-print">
+    <button class="btn btn-pdf" onclick="window.print()">📄 PDF 다운로드</button>
+  </div>
 
   <div class="card">
     <h2>1. 예산 입력</h2>
@@ -79,15 +97,15 @@
           <th style="width:80px;">횟수</th>
           <th style="width:150px;">총금액</th>
           <th>비고</th>
-          <th style="width:48px;">삭제</th>
+          <th class="no-print" style="width:48px;">삭제</th>
         </tr>
       </thead>
       <tbody id="expenseBody"></tbody>
       <tfoot>
-        <tr class="sum-row"><td class="label-cell" colspan="3">고정지출 합계</td><td class="col-total" id="sumFixed">0</td><td></td><td></td></tr>
+        <tr class="sum-row"><td class="label-cell" colspan="3">고정지출 합계</td><td class="col-total" id="sumFixed">0</td><td></td><td class="no-print"></td></tr>
       </tfoot>
     </table>
-    <button class="btn btn-add" onclick="addRow()">＋ 행 추가</button>
+    <button class="btn btn-add no-print" onclick="addRow()">＋ 행 추가</button>
   </div>
 
   <div class="card">
@@ -101,15 +119,15 @@
           <th style="width:90px;">비율(%)</th>
           <th style="width:150px;">변동비 금액</th>
           <th>비고</th>
-          <th style="width:48px;">삭제</th>
+          <th class="no-print" style="width:48px;">삭제</th>
         </tr>
       </thead>
       <tbody id="varBody"></tbody>
       <tfoot>
-        <tr class="sum-row"><td class="label-cell" colspan="4">변동비 합계</td><td class="col-total" id="sumVar">0</td><td></td><td></td></tr>
+        <tr class="sum-row"><td class="label-cell" colspan="4">변동비 합계</td><td class="col-total" id="sumVar">0</td><td></td><td class="no-print"></td></tr>
       </tfoot>
     </table>
-    <button class="btn btn-add-var" onclick="addVar()">＋ 변동비 추가</button>
+    <button class="btn btn-add-var no-print" onclick="addVar()">＋ 변동비 추가</button>
     <div class="note">기준을 "투찰가" 또는 "사업예산"으로 두면 기준금액이 자동으로 채워지고, "직접입력"을 고르면 금액을 직접 넣을 수 있습니다. 변동비 금액 = 기준금액 × 비율.</div>
   </div>
 
@@ -128,13 +146,13 @@
 
   <div class="card">
     <h2>5. 투찰율 / 투찰가 결정</h2>
-    <div class="slider-row">
+    <div class="slider-row no-print">
       <span style="font-size:14px;font-weight:600;">투찰율</span>
       <input type="range" id="bidRate" min="70" max="100" step="1" value="88" oninput="calc()">
       <span class="rate-display"><span id="bidRateVal">88</span>%</span>
     </div>
-    <div class="row" style="margin-top:8px;">
-      <label class="lbl">직접 입력(%)</label>
+    <div class="row">
+      <label class="lbl">투찰율(%)</label>
       <input type="number" id="bidRateInput" value="88" step="1" min="0" max="100" oninput="syncRate()" style="width:120px;text-align:right;">
     </div>
     <div class="result-grid" style="margin-top:8px;">
@@ -169,7 +187,7 @@
       '<td class="col-num"><input type="text" class="exp-qty numinput" value="'+(d.qty!==''?comma(d.qty):'')+'"></td>'+
       '<td class="col-total exp-total">0</td>'+
       '<td class="col-note"><input type="text" class="exp-note" value="'+(d.note||'')+'"></td>'+
-      '<td style="text-align:center;"><button class="btn btn-del" title="삭제" onclick="delRow(this)">✕</button></td>';
+      '<td class="no-print" style="text-align:center;"><button class="btn btn-del" title="삭제" onclick="delRow(this)">✕</button></td>';
     tbody.appendChild(tr);
     tr.querySelectorAll('.numinput').forEach(el=>el.addEventListener('input',function(){applyComma(el);calc();}));
     tr.querySelector('.exp-name').addEventListener('input',calc);
@@ -191,7 +209,7 @@
       '<td class="col-num"><input type="text" class="var-pct" value="'+(d.pct!==''?d.pct:'')+'"></td>'+
       '<td class="col-total var-total">0</td>'+
       '<td class="col-note"><input type="text" class="var-note" value="'+(d.note||'')+'"></td>'+
-      '<td style="text-align:center;"><button class="btn btn-del" title="삭제" onclick="delRow(this)">✕</button></td>';
+      '<td class="no-print" style="text-align:center;"><button class="btn btn-del" title="삭제" onclick="delRow(this)">✕</button></td>';
     tbody.appendChild(tr);
     tr.querySelectorAll('.numinput').forEach(el=>el.addEventListener('input',function(){applyComma(el);calc();}));
     tr.querySelector('.var-pct').addEventListener('input',calc);
