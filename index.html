@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>입찰 투찰율 시뮬레이션</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif; background:#f4f6f9; margin:0; padding:24px; color:#222; }
+  .wrap { max-width:1080px; margin:0 auto; }
+  h1 { font-size:22px; margin-bottom:4px; }
+  .sub { color:#777; font-size:13px; margin-bottom:20px; }
+  .card { background:#fff; border-radius:12px; padding:22px; margin-bottom:18px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+  .card h2 { font-size:16px; margin:0 0 16px; padding-bottom:8px; border-bottom:2px solid #eef0f4; }
+  .row { display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+  label.lbl { width:150px; font-size:14px; font-weight:600; }
+  input[type="number"], input[type="text"], select { padding:8px 10px; border:1px solid #d0d5dd; border-radius:7px; font-size:14px; }
+  .check-group { display:flex; gap:18px; align-items:center; }
+  .check-group label { font-size:14px; cursor:pointer; display:flex; align-items:center; gap:5px; }
+  table { width:100%; border-collapse:collapse; margin-bottom:12px; }
+  th, td { padding:7px 8px; border:1px solid #e6e9ef; font-size:13px; }
+  th { background:#f8f9fb; color:#555; text-align:center; }
+  td.label-cell { background:#fafbfc; font-weight:600; text-align:center; }
+  .col-name input { width:100%; text-align:left; }
+  .col-num input { width:100%; text-align:right; }
+  .col-num select { width:100%; }
+  .col-total { text-align:right; font-weight:600; background:#fafbfc; }
+  .col-note input { width:100%; text-align:left; }
+  tr.sum-row td { background:#eef5ff; font-weight:700; }
+  tr.sum-row td.label-cell { text-align:right; }
+  .var-table th { background:#fff8e6; }
+  .var-table tr.sum-row td { background:#fff3c4; }
+  .btn { padding:9px 16px; border:none; border-radius:7px; font-size:14px; cursor:pointer; font-weight:600; }
+  .btn-add { background:#2d6cdf; color:#fff; }
+  .btn-add-var { background:#e6a700; color:#fff; }
+  .btn-del { background:#ffe2e2; color:#d33; padding:4px 9px; font-size:12px; }
+  .btn-add:hover { background:#245bc0; }
+  .result-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .result-box { background:#f8f9fb; border-radius:9px; padding:14px 16px; }
+  .result-box .k { font-size:13px; color:#777; }
+  .result-box .v { font-size:19px; font-weight:700; margin-top:4px; }
+  .v.pos { color:#16a34a; } .v.neg { color:#dc2626; }
+  .highlight { background:#eef5ff; border:1px solid #cfe0ff; }
+  .slider-row { display:flex; align-items:center; gap:14px; margin:8px 0; }
+  input[type="range"] { flex:1; }
+  .rate-display { font-size:24px; font-weight:800; color:#2d6cff; width:90px; text-align:right; }
+  .note { font-size:12px; color:#999; margin-top:6px; }
+  @media (max-width:680px){ .result-grid{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>입찰 투찰율 시뮬레이션</h1>
+  <div class="sub">예산 · 고정지출 · 변동비 · 수익분석율을 기반으로 투찰가를 결정합니다.</div>
+
+  <div class="card">
+    <h2>1. 예산 입력</h2>
+    <div class="row">
+      <label class="lbl">예산금액</label>
+      <input type="text" id="budget" placeholder="예산금액 입력" style="width:220px;text-align:right;">
+    </div>
+    <div class="row">
+      <label class="lbl">부가세(VAT)</label>
+      <div class="check-group">
+        <label><input type="radio" name="vat" value="included" checked onchange="calc()"> VAT 포함</label>
+        <label><input type="radio" name="vat" value="excluded" onchange="calc()"> VAT 미포함</label>
+      </div>
+    </div>
+    <div class="row">
+      <label class="lbl">VAT율(%)</label>
+      <input type="number" id="vatRate" value="10" oninput="calc()" style="width:120px;text-align:right;">
+    </div>
+    <div class="note">VAT 미포함 선택 시 입력한 예산은 공급가액(부가세 제외)으로 간주됩니다.</div>
+  </div>
+
+  <div class="card">
+    <h2>2. 고정 지출항목</h2>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:80px;"></th>
+          <th style="width:150px;">항목</th>
+          <th style="width:130px;">단가</th>
+          <th style="width:70px;">횟수</th>
+          <th style="width:140px;">총금액</th>
+          <th>비고</th>
+          <th style="width:55px;">삭제</th>
+        </tr>
+      </thead>
+      <tbody id="expenseBody"></tbody>
+      <tfoot>
+        <tr class="sum-row"><td class="label-cell" colspan="4">고정지출 합계</td><td class="col-total" id="sumFixed">0</td><td></td><td></td></tr>
+      </tfoot>
+    </table>
+    <button class="btn btn-add" onclick="addRow()">＋ 행 추가</button>
+  </div>
+
+  <div class="card">
+    <h2>3. 변동비 (금액 × 퍼센트 자동계산)</h2>
+    <table class="var-table">
+      <thead>
+        <tr>
+          <th style="width:170px;">항목</th>
+          <th style="width:190px;">기준</th>
+          <th style="width:150px;">기준금액</th>
+          <th style="width:90px;">비율(%)</th>
+          <th style="width:150px;">변동비 금액</th>
+          <th>비고</th>
+          <th style="width:55px;">삭제</th>
+        </tr>
+      </thead>
+      <tbody id="varBody"></tbody>
+      <tfoot>
+        <tr class="sum-row"><td class="label-cell" colspan="4">변동비 합계</td><td class="col-total" id="sumVar">0</td><td></td><td></td></tr>
+      </tfoot>
+    </table>
+    <button class="btn btn-add-var" onclick="addVar()">＋ 변동비 추가</button>
+    <div class="note">기준을 "투찰가" 또는 "사업예산"으로 두면 기준금액이 자동으로 채워지고, "직접입력"을 고르면 금액을 직접 넣을 수 있습니다. 변동비 금액 = 기준금액 × 비율.</div>
+  </div>
+
+  <div class="card">
+    <h2>4. 예산 / 수익 분석</h2>
+    <div class="result-grid">
+      <div class="result-box"><div class="k">사업예산 (공급가액, VAT 제외)</div><div class="v" id="rNet">0 원</div></div>
+      <div class="result-box"><div class="k">부가세(VAT)</div><div class="v" id="rVat">0 원</div></div>
+      <div class="result-box"><div class="k">고정지출 합계</div><div class="v" id="rFixed">0 원</div></div>
+      <div class="result-box"><div class="k">변동비 합계</div><div class="v" id="rVar">0 원</div></div>
+      <div class="result-box"><div class="k">지출비용 총합 (고정+변동)</div><div class="v" id="rExp">0 원</div></div>
+      <div class="result-box"><div class="k">예상 수익 (사업예산 − 지출)</div><div class="v" id="rProfit">0 원</div></div>
+      <div class="result-box highlight" style="grid-column:1/3;"><div class="k">수익분석율 (수익 ÷ 사업예산)</div><div class="v" id="rMargin">0 %</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>5. 투찰율 / 투찰가 결정</h2>
+    <div class="slider-row">
+      <span style="font-size:14px;font-weight:600;">투찰율</span>
+      <input type="range" id="bidRate" min="70" max="100" step="0.001" value="88" oninput="calc()">
+      <span class="rate-display"><span id="bidRateVal">88.000</span>%</span>
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <label class="lbl">직접 입력(%)</label>
+      <input type="number" id="bidRateInput" value="88" step="0.001" oninput="syncRate()" style="width:120px;text-align:right;">
+    </div>
+    <div class="result-grid" style="margin-top:8px;">
+      <div class="result-box"><div class="k">투찰가 (VAT 제외)</div><div class="v" id="bidNet">0 원</div></div>
+      <div class="result-box"><div class="k">투찰가 (VAT 포함)</div><div class="v" id="bidTotal">0 원</div></div>
+      <div class="result-box highlight" style="grid-column:1/3;"><div class="k">투찰 시 실제 수익 (투찰가 − 지출, VAT 제외 기준)</div><div class="v" id="bidProfit">0 원</div><div class="note" id="bidProfitRate" style="margin-top:6px;"></div></div>
+    </div>
+    <div class="note">투찰가 = 사업예산(공급가액) × 투찰율. 투찰가 기준 변동비는 투찰율 변경 시 자동 재계산됩니다.</div>
+  </div>
+</div>
+
+<script>
+  function num(v){ return parseFloat(String(v).replace(/,/g,''))||0; }
+  function comma(n){ if(isNaN(n)||!isFinite(n)) n=0; return Math.round(n).toLocaleString('ko-KR'); }
+  function won(n){ return comma(n)+' 원'; }
+  function applyComma(el){ const raw=el.value.replace(/,/g,''); if(raw===''){el.value='';return;} if(isNaN(raw))return; el.value=Number(raw).toLocaleString('ko-KR'); }
+
+  let CTX = { bidNet:0, bidTotal:0, netBudget:0 };
+
+  const FIXED = [
+    {name:'주강사', unit:120000, qty:24, note:''},
+    {name:'보조강사', unit:30000, qty:24, note:''},
+    {name:'주강사(오프)', unit:300000, qty:40, note:''},
+    {name:'보조강사(오프)', unit:250000, qty:40, note:''},
+    {name:'인프라', unit:30000, qty:50, note:'현 신청인원 42명, 50명 정원 기준 계산'},
+    {name:'출장비', unit:500000, qty:5, note:'1회 출장비 50만원으로 산정'},
+    {name:'예비비', unit:5000000, qty:1, note:''}
+  ];
+
+  const VARS = [
+    {name:'커미션', base:'bidNet', pct:5, note:'투찰가의 5%'}
+  ];
+
+  function addRow(d){
+    d = d || {name:'',unit:'',qty:'',note:''};
+    const tbody=document.getElementById('expenseBody');
+    const tr=document.createElement('tr');
+    tr.innerHTML =
+      '<td class="label-cell">고정</td>'+
+      '<td class="col-name"><input type="text" class="exp-name" value="'+d.name+'"></td>'+
+      '<td class="col-num"><input type="text" class="exp-unit numinput" value="'+(d.unit!==''?comma(d.unit):'')+'"></td>'+
+      '<td class="col-num"><input type="text" class="exp-qty numinput" value="'+(d.qty!==''?comma(d.qty):'')+'"></td>'+
+      '<td class="col-total exp-total">0</td>'+
+      '<td class="col-note"><input type="text" class="exp-note" value="'+(d.note||'')+'"></td>'+
+      '<td style="text-align:center;"><button class="btn btn-del" onclick="delRow(this)">삭제</button></td>';
+    tbody.appendChild(tr);
+    tr.querySelectorAll('.numinput').forEach(el=>el.addEventListener('input',function(){applyComma(el);calc();}));
+    tr.querySelector('.exp-name').addEventListener('input',calc);
+  }
+
+  function addVar(d){
+    d = d || {name:'',base:'bidNet',pct:'',note:''};
+    const tbody=document.getElementById('varBody');
+    const tr=document.createElement('tr');
+    const sel = '<select class="var-base">'+
+      '<option value="bidNet"'+(d.base==='bidNet'?' selected':'')+'>투찰가(VAT 제외)</option>'+
+      '<option value="bidTotal"'+(d.base==='bidTotal'?' selected':'')+'>투찰가(VAT 포함)</option>'+
+      '<option value="netBudget"'+(d.base==='netBudget'?' selected':'')+'>사업예산(VAT 제외)</option>'+
+      '<option value="manual"'+(d.base==='manual'?' selected':'')+'>직접입력</option></select>';
+    tr.innerHTML =
+      '<td class="col-name"><input type="text" class="var-name" value="'+d.name+'"></td>'+
+      '<td class="col-num">'+sel+'</td>'+
+      '<td class="col-num"><input type="text" class="var-amount numinput" value=""></td>'+
+      '<td class="col-num"><input type="text" class="var-pct" value="'+(d.pct!==''?d.pct:'')+'"></td>'+
+      '<td class="col-total var-total">0</td>'+
+      '<td class="col-note"><input type="text" class="var-note" value="'+(d.note||'')+'"></td>'+
+      '<td style="text-align:center;"><button class="btn btn-del" onclick="delRow(this)">삭제</button></td>';
+    tbody.appendChild(tr);
+    tr.querySelectorAll('.numinput').forEach(el=>el.addEventListener('input',function(){applyComma(el);calc();}));
+    tr.querySelector('.var-pct').addEventListener('input',calc);
+    tr.querySelector('.var-name').addEventListener('input',calc);
+    tr.querySelector('.var-base').addEventListener('change',calc);
+  }
+
+  function delRow(btn){ btn.closest('tr').remove(); calc(); }
+  function syncRate(){ document.getElementById('bidRate').value=parseFloat(document.getElementById('bidRateInput').value)||0; calc(); }
+
+  function calc(){
+    applyComma(document.getElementById('budget'));
+    const budget=num(document.getElementById('budget').value);
+    const vatRate=(parseFloat(document.getElementById('vatRate').value)||0)/100;
+    const vatType=document.querySelector('input[name="vat"]:checked').value;
+    let netBudget, vatAmount;
+    if(vatType==='included'){ netBudget=budget/(1+vatRate); vatAmount=budget-netBudget; }
+    else { netBudget=budget; vatAmount=budget*vatRate; }
+
+    const bidRate=parseFloat(document.getElementById('bidRate').value)||0;
+    const bidNet=netBudget*(bidRate/100);
+    const bidTotal=bidNet*(1+vatRate);
+    CTX={bidNet:bidNet, bidTotal:bidTotal, netBudget:netBudget};
+
+    let fixedTotal=0;
+    document.querySelectorAll('#expenseBody tr').forEach(tr=>{
+      const rowTotal=num(tr.querySelector('.exp-unit').value)*num(tr.querySelector('.exp-qty').value);
+      tr.querySelector('.exp-total').textContent=comma(rowTotal);
+      fixedTotal+=rowTotal;
+    });
+
+    let varTotal=0;
+    document.querySelectorAll('#varBody tr').forEach(tr=>{
+      const base=tr.querySelector('.var-base').value;
+      const amountEl=tr.querySelector('.var-amount');
+      const pct=num(tr.querySelector('.var-pct').value);
+      let baseAmount;
+      if(base==='manual'){
+        amountEl.readOnly=false; amountEl.style.background='';
+        baseAmount=num(amountEl.value);
+      } else {
+        baseAmount=CTX[base]||0;
+        amountEl.readOnly=true; amountEl.style.background='#f5f5f5';
+        amountEl.value=comma(baseAmount);
+      }
+      const rowTotal=baseAmount*(pct/100);
+      tr.querySelector('.var-total').textContent=comma(rowTotal);
+      varTotal+=rowTotal;
+    });
+
+    const totalExp=fixedTotal+varTotal;
+
+    document.getElementById('sumFixed').textContent=comma(fixedTotal);
+    document.getElementById('sumVar').textContent=comma(varTotal);
+
+    const profit=netBudget-totalExp;
+    const margin=netBudget>0?(profit/netBudget)*100:0;
+    document.getElementById('rNet').textContent=won(netBudget);
+    document.getElementById('rVat').textContent=won(vatAmount);
+    document.getElementById('rFixed').textContent=won(fixedTotal);
+    document.getElementById('rVar').textContent=won(varTotal);
+    document.getElementById('rExp').textContent=won(totalExp);
+    const pEl=document.getElementById('rProfit'); pEl.textContent=won(profit); pEl.className='v '+(profit>=0?'pos':'neg');
+    const mEl=document.getElementById('rMargin'); mEl.textContent=margin.toFixed(2)+' %'; mEl.className='v '+(margin>=0?'pos':'neg');
+
+    document.getElementById('bidRateVal').textContent=bidRate.toFixed(3);
+    document.getElementById('bidRateInput').value=bidRate;
+    document.getElementById('bidNet').textContent=won(bidNet);
+    document.getElementById('bidTotal').textContent=won(bidTotal);
+    const bidProfit=bidNet-totalExp;
+    const bidProfitRate=bidNet>0?(bidProfit/bidNet)*100:0;
+    const bpEl=document.getElementById('bidProfit'); bpEl.textContent=won(bidProfit); bpEl.className='v '+(bidProfit>=0?'pos':'neg');
+    document.getElementById('bidProfitRate').textContent='투찰가 대비 수익률: '+bidProfitRate.toFixed(2)+' %'+(bidProfit<0?'  ⚠ 적자 구간입니다':'');
+  }
+
+  document.getElementById('budget').addEventListener('input', calc);
+  FIXED.forEach(d=>addRow(d));
+  VARS.forEach(d=>addVar(d));
+  calc();
+</script>
+</body>
+</html>
