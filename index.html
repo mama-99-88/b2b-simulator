@@ -74,18 +74,17 @@
     <table>
       <thead>
         <tr>
-          <th style="width:80px;"></th>
-          <th style="width:150px;">항목</th>
-          <th style="width:130px;">단가</th>
-          <th style="width:70px;">횟수</th>
-          <th style="width:140px;">총금액</th>
+          <th style="width:170px;">항목</th>
+          <th style="width:140px;">단가</th>
+          <th style="width:80px;">횟수</th>
+          <th style="width:150px;">총금액</th>
           <th>비고</th>
           <th style="width:48px;">삭제</th>
         </tr>
       </thead>
       <tbody id="expenseBody"></tbody>
       <tfoot>
-        <tr class="sum-row"><td class="label-cell" colspan="4">고정지출 합계</td><td class="col-total" id="sumFixed">0</td><td></td><td></td></tr>
+        <tr class="sum-row"><td class="label-cell" colspan="3">고정지출 합계</td><td class="col-total" id="sumFixed">0</td><td></td><td></td></tr>
       </tfoot>
     </table>
     <button class="btn btn-add" onclick="addRow()">＋ 행 추가</button>
@@ -165,7 +164,6 @@
     const tbody=document.getElementById('expenseBody');
     const tr=document.createElement('tr');
     tr.innerHTML =
-      '<td class="label-cell">고정</td>'+
       '<td class="col-name"><input type="text" class="exp-name" value="'+d.name+'"></td>'+
       '<td class="col-num"><input type="text" class="exp-unit numinput" value="'+(d.unit!==''?comma(d.unit):'')+'"></td>'+
       '<td class="col-num"><input type="text" class="exp-qty numinput" value="'+(d.qty!==''?comma(d.qty):'')+'"></td>'+
@@ -203,7 +201,6 @@
 
   function delRow(btn){ btn.closest('tr').remove(); calc(); }
 
-  // 직접입력 → 슬라이더 동기화 (정수)
   function syncRate(){
     let v=Math.round(parseFloat(document.getElementById('bidRateInput').value)||0);
     document.getElementById('bidRate').value=v;
@@ -218,7 +215,6 @@
     if(vatType==='included'){ netBudget=budget/(1+VAT_RATE); vatAmount=budget-netBudget; }
     else { netBudget=budget; vatAmount=budget*VAT_RATE; }
 
-    // 투찰율: 항상 정수
     const bidRate=Math.round(parseFloat(document.getElementById('bidRate').value)||0);
     const bidNet=netBudget*(bidRate/100);
     const bidTotal=bidNet*(1+VAT_RATE);
@@ -265,7 +261,6 @@
     const pEl=document.getElementById('rProfit'); pEl.textContent=won(profit); pEl.className='v '+(profit>=0?'pos':'neg');
     const mEl=document.getElementById('rMargin'); mEl.textContent=margin.toFixed(2)+' %'; mEl.className='v '+(margin>=0?'pos':'neg');
 
-    // 투찰율 표시 (정수)
     document.getElementById('bidRateVal').textContent=bidRate;
     const briEl=document.getElementById('bidRateInput');
     if(document.activeElement!==briEl){ briEl.value=bidRate; }
